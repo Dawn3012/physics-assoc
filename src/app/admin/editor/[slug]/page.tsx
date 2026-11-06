@@ -100,7 +100,7 @@ export default function EditArticlePage() {
   async function checkAuth() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      router.push('/admin/login');
+      router.push('/admin');
       return;
     }
     setAuthenticated(true);
@@ -213,10 +213,48 @@ export default function EditArticlePage() {
           </div>
 
           {showPreview ? (
-            <div className="bg-prussian/20 backdrop-blur-sm rounded-2xl p-8 border border-prussian/50">
-              <h1 className="text-4xl font-bold text-white mb-4">{title || 'Untitled'}</h1>
-              <p className="text-gray-500 mb-8">By {author || 'Unknown'}</p>
-              <MarkdownRenderer content={content || '*No content yet*'} />
+            /* Full Website Draft Preview */
+            <div className="space-y-6">
+              <div className="bg-amber-500/20 border border-amber-500/40 text-amber-300 px-4 py-3 rounded-xl flex items-center justify-between text-sm">
+                <span>👁️ <strong>Draft Preview:</strong> This is how your article will appear on the website once published.</span>
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(false)}
+                  className="px-3 py-1 bg-amber-500 text-black font-semibold rounded text-xs hover:bg-amber-400 transition-colors"
+                >
+                  Return to Edit
+                </button>
+              </div>
+
+              <div className="rounded-2xl border p-6 md:p-10" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+                <header className="max-w-[1000px] mx-auto text-center mb-10">
+                  {tagsInput && (
+                    <div className="flex flex-wrap justify-center gap-2 mb-6">
+                      {tagsInput.split(',').map((t) => t.trim()).filter(Boolean).map((tag) => (
+                        <span key={tag} className="text-base font-yanone uppercase tracking-widest px-2.5 py-0.5 rounded border border-border text-text-dim">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <h1 className="text-3xl md:text-5xl text-text font-display mb-4 leading-tight">
+                    {title || 'Untitled Article'}
+                  </h1>
+                  <p className="text-lg uppercase tracking-wider font-yanone text-text-dim">
+                    By <span className="text-accent font-semibold">{author || 'Author Name'}</span> • {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </header>
+
+                {coverImage && (
+                  <div className="max-w-[1000px] mx-auto mb-10 rounded-lg overflow-hidden border border-border aspect-[21/9] relative bg-black/40">
+                    <img src={coverImage} alt={title} className="w-full h-full object-cover" />
+                  </div>
+                )}
+
+                <div className="max-w-[1000px] mx-auto p-6 md:p-10 border rounded-lg bg-bg-surface text-text leading-relaxed prose dark:prose-invert" style={{ borderColor: 'var(--border)' }}>
+                  <MarkdownRenderer content={content || '*No content written yet.*'} />
+                </div>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleSave} className="space-y-6">

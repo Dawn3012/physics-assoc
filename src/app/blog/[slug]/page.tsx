@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { Article } from '@/lib/types';
@@ -9,17 +10,24 @@ import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 export default function ArticlePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const slug = params.slug as string;
+  const isPreview = searchParams?.get('preview') === 'true';
 
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  useEffect(() => { fetchArticle(); }, [slug]);
+  useEffect(() => { fetchArticle(); }, [slug, isPreview]);
 
   async function fetchArticle() {
-    const { data, error } = await supabase.from('articles').select('*').eq('slug', slug).eq('published', true).single();
+    if (!supabase) { setNotFound(true); setLoading(false); return; }
+    let query = supabase.from('articles').select('*').eq('slug', slug);
+    if (!isPreview) {
+      query = query.eq('published', true);
+    }
+    const { data, error } = await query.single();
     if (error || !data) { setNotFound(true); setLoading(false); return; }
     setArticle(data as Article);
     setNotFound(false);
@@ -32,7 +40,16 @@ export default function ArticlePage() {
   const formattedDate = new Date(article.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
-    <article className="min-h-screen pt-16 pb-24 bg-transparent">
+    <>
+      {(!article.published || isPreview) && (
+        <div className="bg-amber-500 text-black px-4 py-2.5 text-center text-xs md:text-sm font-semibold tracking-wide sticky top-0 z-50 flex flex-wrap items-center justify-center gap-3 shadow-md">
+          <span>👁️ DRAFT PREVIEW MODE — This is how your article will look once published. It is currently unpublished.</span>
+          <Link href={`/admin/editor/${article.slug}`} className="underline font-bold hover:text-white transition-colors">
+            Edit in Admin
+          </Link>
+        </div>
+      )}
+      <article className="min-h-screen pt-16 pb-24 bg-transparent">
       <header className="max-w-[1000px] mx-auto px-5 md:px-8 mb-16 relative z-10 text-center">
         <button onClick={() => router.push('/blog')} className="text-xl font-yanone uppercase tracking-[0.1em] text-text-muted hover:text-accent transition-colors mb-12 inline-flex items-center gap-2"><span>←</span> Back to Articles</button>
         {article.tags && article.tags.length > 0 && (
@@ -58,5 +75,6 @@ export default function ArticlePage() {
         </div>
       </div>
     </article>
+    </>
   );
 }

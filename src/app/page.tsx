@@ -83,7 +83,7 @@ export default function Home() {
                   phenomena in an accessible way.
                 </p>
                 <p>
-                  Whether you're interested in quantum computing, cosmology, particle 
+                  Whether you&apos;re interested in quantum computing, cosmology, particle 
                   physics, or any other field — we have something for you.
                 </p>
               </div>
@@ -104,6 +104,7 @@ export default function Home() {
                 src="https://raw.githubusercontent.com/bitsphyassoc/bitsphyassoc.github.io/main/assets/images/feature-image.jpg"
                 alt="Einstein figure"
                 fill
+                priority
                 className="object-cover"
                 sizes="(max-width: 768px) 100vw, 50vw"
               />
@@ -146,16 +147,31 @@ export default function Home() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-10">
-            {featuredArticles.map((article) => (
-              <ArticleCard
-                key={article.id}
-                title={article.title}
-                description={article.excerpt}
-                author={article.author}
-                image={article.cover_image}
-                slug={article.slug}
-              />
-            ))}
+            {featuredArticles.length > 0 ? (
+              featuredArticles.map((article) => (
+                <ArticleCard
+                  key={article.id}
+                  title={article.title}
+                  description={article.excerpt}
+                  author={article.author}
+                  image={article.cover_image}
+                  slug={article.slug}
+                />
+              ))
+            ) : (
+              [1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="animate-pulse border rounded-xl p-6"
+                  style={{ background: 'var(--bg-surface)', borderColor: 'var(--border)' }}
+                >
+                  <div className="h-44 bg-prussian/20 rounded-lg mb-4" />
+                  <div className="h-6 bg-prussian/20 rounded w-3/4 mb-3" />
+                  <div className="h-4 bg-prussian/20 rounded w-full mb-2" />
+                  <div className="h-4 bg-prussian/20 rounded w-2/3" />
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>

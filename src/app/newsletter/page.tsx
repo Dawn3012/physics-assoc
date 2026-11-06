@@ -93,7 +93,7 @@ export default function NewsletterPage() {
           ) : (
             <div className="text-center py-24 border bg-bg-surface" style={{ borderColor: 'var(--border)' }}>
               <h3 className="text-4xl text-text font-display mb-4">No newsletters available</h3>
-              <p className="text-text-dim">We're currently working on our first issue.</p>
+              <p className="text-text-dim">We&apos;re currently working on our first issue.</p>
             </div>
           )}
         </div>

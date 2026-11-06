@@ -10,4 +10,6 @@ import MarkdownRenderer from './MarkdownRenderer';
 import { ThemeProvider, useTheme } from './ThemeProvider';
 import XkcdStrip from './XkcdStrip';
 
-export { Header, Footer, Banner, ArticleCard, SectionHeading, ParticleBackground, BlogCard, BlogHero, MarkdownRenderer, ThemeProvider, useTheme, XkcdStrip };
+import EventCard from './EventCard';
+
+export { Header, Footer, Banner, ArticleCard, SectionHeading, ParticleBackground, BlogCard, BlogHero, MarkdownRenderer, ThemeProvider, useTheme, XkcdStrip, EventCard };

@@ -39,7 +39,15 @@ export default function Header() {
 
           {/* Left: Logo */}
           <Link href="/" className="flex items-center gap-3 group w-1/4">
-            <img src="https://res.cloudinary.com/daelpfpju/image/upload/v1787506045/physics-assoc_logo_lrnotx.jpg" alt="Club Logo" className="w-14 h-14 object-contain rounded-full" />
+            <img
+              src="https://res.cloudinary.com/daelpfpju/image/upload/v1787506045/physics-assoc_logo_lrnotx.jpg"
+              alt="Club Logo"
+              width={56}
+              height={56}
+              loading="eager"
+              decoding="async"
+              className="w-14 h-14 object-contain rounded-full"
+            />
             <div className="flex items-baseline gap-2">
               <span
                 className="text-3xl md:text-5xl tracking-wide transition-colors group-hover:text-accent font-yanone"

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { Article } from '@/lib/types';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import {
   looksLikeLatexDocument,
@@ -15,8 +16,11 @@ import { uploadArticleImage, imageFilesFrom } from '@/lib/uploadImage';
 import ImageUploader from '@/components/ImageUploader';
 import toast from 'react-hot-toast';
 
-export default function ArticleEditorPage() {
+function ArticleEditorForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isDemo = searchParams?.get('demo') === 'true';
+
   const [authenticated, setAuthenticated] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -105,9 +109,13 @@ export default function ArticleEditorPage() {
   }
 
   async function checkAuth() {
+    if (isDemo) {
+      setAuthenticated(true);
+      return;
+    }
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      router.push('/admin/login');
+      router.push('/admin');
       return;
     }
     setAuthenticated(true);
@@ -127,6 +135,33 @@ export default function ArticleEditorPage() {
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean);
+
+    if (isDemo) {
+      const newArticle: Article = {
+        id: 'demo-art-' + Date.now(),
+        title,
+        slug,
+        excerpt,
+        content,
+        cover_image: coverImage || 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=1200&q=80',
+        author: author || 'Physics Association',
+        tags,
+        published,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      try {
+        const raw = localStorage.getItem('pa_demo_articles');
+        const list = raw ? JSON.parse(raw) : [];
+        list.unshift(newArticle);
+        localStorage.setItem('pa_demo_articles', JSON.stringify(list));
+      } catch {}
+
+      toast.success(published ? 'Article created and published (Demo)!' : 'Draft article saved (Demo)!');
+      router.push('/demo?tab=articles');
+      return;
+    }
 
     const { error } = await supabase.from('articles').insert({
       title,
@@ -150,7 +185,7 @@ export default function ArticleEditorPage() {
     }
 
     toast.success(published ? 'Article published!' : 'Draft saved!');
-    router.push('/admin');
+    router.push('/admin?tab=articles');
   }
 
   if (!authenticated) {
@@ -169,7 +204,7 @@ export default function ArticleEditorPage() {
           <div className="flex justify-between items-center mb-8">
             <div>
               <Link
-                href="/admin"
+                href={isDemo ? '/demo?tab=articles' : '/admin?tab=articles'}
                 className="text-gray-400 hover:text-orange transition-colors text-sm mb-2 inline-flex items-center gap-1"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,11 +229,48 @@ export default function ArticleEditorPage() {
           </div>
 
           {showPreview ? (
-            /* Preview */
-            <div className="bg-prussian/20 backdrop-blur-sm rounded-2xl p-8 border border-prussian/50">
-              <h1 className="text-4xl font-bold text-white mb-4">{title || 'Untitled'}</h1>
-              <p className="text-gray-500 mb-8">By {author || 'Unknown'}</p>
-              <MarkdownRenderer content={content || '*No content yet*'} />
+            /* Full Website Draft Preview */
+            <div className="space-y-6">
+              <div className="bg-amber-500/20 border border-amber-500/40 text-amber-300 px-4 py-3 rounded-xl flex items-center justify-between text-sm">
+                <span>👁️ <strong>Draft Preview:</strong> This is how your article will appear on the website once published.</span>
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(false)}
+                  className="px-3 py-1 bg-amber-500 text-black font-semibold rounded text-xs hover:bg-amber-400 transition-colors"
+                >
+                  Return to Edit
+                </button>
+              </div>
+
+              <div className="rounded-2xl border p-6 md:p-10" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+                <header className="max-w-[1000px] mx-auto text-center mb-10">
+                  {tagsInput && (
+                    <div className="flex flex-wrap justify-center gap-2 mb-6">
+                      {tagsInput.split(',').map((t) => t.trim()).filter(Boolean).map((tag) => (
+                        <span key={tag} className="text-base font-yanone uppercase tracking-widest px-2.5 py-0.5 rounded border border-border text-text-dim">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <h1 className="text-3xl md:text-5xl text-text font-display mb-4 leading-tight">
+                    {title || 'Untitled Article'}
+                  </h1>
+                  <p className="text-lg uppercase tracking-wider font-yanone text-text-dim">
+                    By <span className="text-accent font-semibold">{author || 'Author Name'}</span> • {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </header>
+
+                {coverImage && (
+                  <div className="max-w-[1000px] mx-auto mb-10 rounded-lg overflow-hidden border border-border aspect-[21/9] relative bg-black/40">
+                    <img src={coverImage} alt={title} className="w-full h-full object-cover" />
+                  </div>
+                )}
+
+                <div className="max-w-[1000px] mx-auto p-6 md:p-10 border rounded-lg bg-bg-surface text-text leading-relaxed prose dark:prose-invert" style={{ borderColor: 'var(--border)' }}>
+                  <MarkdownRenderer content={content || '*No content written yet.*'} />
+                </div>
+              </div>
             </div>
           ) : (
             /* Editor Form */
@@ -380,5 +452,19 @@ export default function ArticleEditorPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function ArticleEditorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-prussian border-t-orange rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <ArticleEditorForm />
+    </Suspense>
   );
 }

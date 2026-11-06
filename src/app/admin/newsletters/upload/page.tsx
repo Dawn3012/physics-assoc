@@ -1,13 +1,17 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { Newsletter } from '@/lib/types';
 import toast from 'react-hot-toast';
 
-export default function UploadNewsletterPage() {
+function UploadNewsletterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isDemo = searchParams?.get('demo') === 'true';
+
   const [authenticated, setAuthenticated] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -19,6 +23,7 @@ export default function UploadNewsletterPage() {
   const [published, setPublished] = useState(false);
 
   const [file, setFile] = useState<File | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -39,9 +44,13 @@ export default function UploadNewsletterPage() {
   }, [title, slugManuallyEdited]);
 
   async function checkAuth() {
+    if (isDemo) {
+      setAuthenticated(true);
+      return;
+    }
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      router.push('/admin/login');
+      router.push('/admin');
       return;
     }
     setAuthenticated(true);
@@ -77,6 +86,34 @@ export default function UploadNewsletterPage() {
     }
 
     setUploading(true);
+
+    if (isDemo) {
+      const newNewsletter: Newsletter = {
+        id: 'demo-news-' + Date.now(),
+        title,
+        slug,
+        description,
+        issue: issue || '1',
+        file_path: file.name,
+        file_url: '#',
+        file_size_bytes: file.size,
+        original_size_bytes: file.size,
+        published,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      try {
+        const raw = localStorage.getItem('pa_demo_newsletters');
+        const list = raw ? JSON.parse(raw) : [];
+        list.unshift(newNewsletter);
+        localStorage.setItem('pa_demo_newsletters', JSON.stringify(list));
+      } catch {}
+
+      toast.success(published ? 'Newsletter published (Demo)!' : 'Newsletter saved as draft (Demo)!');
+      router.push('/demo?tab=newsletters');
+      return;
+    }
 
     const safeName = file.name.replace(/\.pdf$/i, '').replace(/[^a-zA-Z0-9-_]+/g, '-').toLowerCase();
     const filePath = `${Date.now()}-${safeName || 'newsletter'}.pdf`;
@@ -117,7 +154,7 @@ export default function UploadNewsletterPage() {
     }
 
     toast.success(published ? 'Newsletter published!' : 'Newsletter saved as draft!');
-    router.push('/admin/newsletters');
+    router.push('/admin?tab=newsletters');
   }
 
   if (!authenticated) {
@@ -132,18 +169,69 @@ export default function UploadNewsletterPage() {
     <>
       <div className="min-h-screen pt-8 pb-20">
         <div className="container mx-auto px-4 max-w-3xl">
-          <div className="mb-8">
-            <Link
-              href="/admin/newsletters"
-              className="text-gray-400 hover:text-orange transition-colors text-sm mb-2 inline-flex items-center gap-1"
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <Link
+                href={isDemo ? '/demo?tab=newsletters' : '/admin?tab=newsletters'}
+                className="text-gray-400 hover:text-orange transition-colors text-sm mb-2 inline-flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Newsletters
+              </Link>
+              <h1 className="text-3xl font-bold text-white">Upload Newsletter</h1>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowPreview(!showPreview)}
+              className="py-2 px-4 rounded-lg font-medium text-xs bg-prussian/40 hover:bg-prussian/60 border border-prussian/50 text-gray-300 transition-colors flex items-center gap-1.5"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Newsletters
-            </Link>
-            <h1 className="text-3xl font-bold text-white">Upload Newsletter</h1>
+              <span>👁️</span> {showPreview ? 'Back to Form' : 'Preview How It Will Look'}
+            </button>
           </div>
+
+          {showPreview ? (
+            <div className="space-y-6">
+              <div className="bg-amber-500/20 border border-amber-500/40 text-amber-300 px-5 py-4 rounded-xl flex items-center justify-between text-sm">
+                <div>
+                  <p className="font-bold">👁️ Draft Preview: Newsletter Archive Card</p>
+                  <p className="text-xs text-amber-200/80 mt-0.5">
+                    This is how this newsletter will look on the public Newsletter Archive page (`/newsletter`).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(false)}
+                  className="px-4 py-1.5 bg-amber-500 text-black font-semibold rounded text-xs hover:bg-amber-400 transition-colors shrink-0"
+                >
+                  Back to Edit
+                </button>
+              </div>
+
+              <div className="p-8 rounded-2xl border" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+                <div className="max-w-sm border bg-bg-surface p-6 rounded shadow-sm" style={{ borderColor: 'var(--border)' }}>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-xl font-yanone uppercase tracking-widest text-accent border border-accent/30 px-3 py-1">
+                      {issue || 'Issue #1'}
+                    </span>
+                    <span className="text-xs text-text-dim uppercase tracking-wider font-semibold">
+                      {file ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` : 'PDF Document'}
+                    </span>
+                  </div>
+                  <h3 className="text-2xl font-display text-text mb-2">
+                    {title || 'Untitled Newsletter'}
+                  </h3>
+                  <p className="text-sm text-text-dim line-clamp-3 mb-6">
+                    {description || 'No description entered yet.'}
+                  </p>
+                  <div className="border-t pt-4 text-accent font-yanone uppercase text-lg tracking-wider">
+                    Read Now →
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
 
           <form onSubmit={handleSave} className="space-y-6">
             <div className="bg-prussian/20 backdrop-blur-sm rounded-2xl p-8 border border-prussian/50 space-y-6">
@@ -274,8 +362,23 @@ export default function UploadNewsletterPage() {
               </div>
             </div>
           </form>
+          )}
         </div>
       </div>
     </>
+  );
+}
+
+export default function UploadNewsletterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-prussian border-t-orange rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <UploadNewsletterForm />
+    </Suspense>
   );
 }

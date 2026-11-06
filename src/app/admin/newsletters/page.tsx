@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Newsletter } from '@/lib/types';
 import { formatBytes } from '@/lib/format';
+import { checkAdminSession } from '@/lib/eventsStorage';
 import toast from 'react-hot-toast';
 
 export default function AdminNewslettersPage() {
@@ -20,9 +21,9 @@ export default function AdminNewslettersPage() {
   }, []);
 
   async function checkAuth() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      router.push('/admin/login');
+    const isAuth = await checkAdminSession();
+    if (!isAuth) {
+      router.push('/admin');
       return;
     }
     setAuthenticated(true);
@@ -30,6 +31,11 @@ export default function AdminNewslettersPage() {
   }
 
   async function fetchNewsletters() {
+    if (!supabase) {
+      setNewsletters([]);
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from('newsletters')
       .select('*')
@@ -102,7 +108,7 @@ export default function AdminNewslettersPage() {
     <>
       <div className="min-h-screen pt-8 pb-20">
         <div className="container mx-auto px-4 max-w-6xl">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
               <Link
                 href="/admin"
@@ -114,16 +120,40 @@ export default function AdminNewslettersPage() {
                 Back to Dashboard
               </Link>
               <h1 className="text-3xl font-bold text-white mb-1">Newsletters</h1>
-              <p className="text-gray-500">Manage newsletter PDF issues</p>
+              <p className="text-gray-400">Manage and preview newsletter PDF issues</p>
             </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/admin/newsletters/upload"
+                className="bg-orange hover:bg-orange/80 text-white font-bold py-2.5 px-6 rounded-lg transition-colors flex items-center gap-2 shadow-md"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Upload Newsletter
+              </Link>
+            </div>
+          </div>
+
+          {/* Main Category Tabs */}
+          <div className="flex items-center gap-2 border-b border-prussian/50 pb-4 mb-8 overflow-x-auto">
             <Link
-              href="/admin/newsletters/upload"
-              className="bg-orange hover:bg-orange/80 text-white font-bold py-2.5 px-6 rounded-lg transition-colors flex items-center gap-2"
+              href="/admin?tab=articles"
+              className="px-5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap bg-prussian/30 text-gray-400 hover:text-white border border-prussian/50"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Upload Newsletter
+              <span>📝</span> Articles
+            </Link>
+            <Link
+              href="/admin?tab=newsletters"
+              className="px-5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap bg-orange text-white shadow-md"
+            >
+              <span>📰</span> Newsletters ({newsletters.length})
+            </Link>
+            <Link
+              href="/admin?tab=events"
+              className="px-5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap bg-prussian/30 text-gray-400 hover:text-white border border-prussian/50"
+            >
+              <span>📅</span> Events
             </Link>
           </div>
 
@@ -171,17 +201,30 @@ export default function AdminNewslettersPage() {
                         </p>
                       </div>
 
-                      <div className="flex gap-2 flex-shrink-0">
-                        {n.published && (
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {n.published ? (
                           <Link
                             href={`/newsletter/${n.slug}`}
                             target="_blank"
                             className="p-2 text-gray-400 hover:text-white hover:bg-prussian/50 rounded-lg transition-colors"
-                            title="View newsletter"
+                            title="View published newsletter"
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                             </svg>
+                          </Link>
+                        ) : (
+                          <Link
+                            href={`/newsletter/${n.slug}?preview=true`}
+                            target="_blank"
+                            className="px-2.5 py-1.5 text-xs font-semibold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/30 rounded-lg transition-colors flex items-center gap-1.5"
+                            title="Preview how draft newsletter looks"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <span>Preview Draft</span>
                           </Link>
                         )}
                         <button
